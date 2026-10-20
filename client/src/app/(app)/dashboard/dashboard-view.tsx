@@ -1,16 +1,15 @@
 "use client";
 
 import { useAuth } from "@/hooks/use-auth";
-import { isAdmin, isReviewer } from "@/lib/roles";
+import { isAdmin } from "@/lib/roles";
 import { RequireRole } from "@/components/require-role";
-import { PageLoading } from "@/components/spinner";
 import { PageHeader } from "@/components/page-header";
 import { SubmissionsBoard } from "@/components/submissions-board";
 
 export function DashboardView() {
   const { user } = useAuth();
   return (
-    <RequireRole allow={isReviewer} fallback={<PageLoading />}>
+    <RequireRole roles={["MENTOR", "ADMIN"]}>
       <div className="space-y-8">
         <PageHeader
           eyebrow="Mentor"

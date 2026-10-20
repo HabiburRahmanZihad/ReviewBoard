@@ -63,11 +63,14 @@ const THEMES: { value: ThemePreference; label: string; icon: LucideIcon }[] = [
   { value: "system", label: "System", icon: Monitor },
 ];
 
+/**
+ * Sidebar + content frame for the signed-in area. It always renders `children`
+ * — pages guard themselves — and shows a skeleton sidebar until the session is
+ * known, so the frame never jumps when navigation fills in.
+ */
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  if (!user) return null;
 
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[15rem_minmax(0,1fr)]">
@@ -79,15 +82,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </a>
 
       <aside className="sticky top-0 hidden h-dvh border-r bg-sidebar lg:block">
-        <SidebarContent user={user} />
+        {user ? <SidebarContent user={user} /> : <SidebarSkeleton />}
       </aside>
 
       <div className="flex min-w-0 flex-col">
         <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b bg-background/90 px-4 backdrop-blur lg:hidden">
-          <Link href={homePathFor(user)} aria-label="ReviewBoard home">
+          <Link href={user ? homePathFor(user) : "/"} aria-label="ReviewBoard home">
             <Brand />
           </Link>
-          <Button variant="ghost" size="icon" onClick={() => setMobileOpen(true)} aria-label="Open navigation">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setMobileOpen(true)}
+            disabled={!user}
+            aria-label="Open navigation"
+          >
             <Menu />
           </Button>
         </header>
@@ -97,12 +106,35 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
 
-      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" className="bg-sidebar">
-          <SheetTitle className="sr-only">Navigation</SheetTitle>
-          <SidebarContent user={user} onNavigate={() => setMobileOpen(false)} />
-        </SheetContent>
-      </Sheet>
+      {user && (
+        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+          <SheetContent side="left" className="bg-sidebar">
+            <SheetTitle className="sr-only">Navigation</SheetTitle>
+            <SidebarContent user={user} onNavigate={() => setMobileOpen(false)} />
+          </SheetContent>
+        </Sheet>
+      )}
+    </div>
+  );
+}
+
+/** Placeholder while the session is being checked: same geometry as the real sidebar. */
+function SidebarSkeleton() {
+  return (
+    <div className="flex h-full flex-col" aria-hidden>
+      <div className="flex h-16 items-center px-5">
+        <Brand />
+      </div>
+      <div className="flex-1 space-y-2 px-5 py-4">
+        <div className="mb-4 h-3 w-24 animate-pulse rounded bg-muted" />
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="h-7 animate-pulse rounded-md bg-muted/70" />
+        ))}
+      </div>
+      <div className="flex items-center gap-2.5 border-t p-4">
+        <div className="size-8 animate-pulse rounded-full bg-muted" />
+        <div className="h-3 w-28 animate-pulse rounded bg-muted" />
+      </div>
     </div>
   );
 }

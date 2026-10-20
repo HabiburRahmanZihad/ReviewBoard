@@ -3,15 +3,17 @@
 import { useCallback, useState } from "react";
 import { ArrowRight, FolderGit2, Plus, RotateCcw } from "lucide-react";
 import { submissionsApi } from "@/lib/api";
-import { isStudent } from "@/lib/roles";
 import { formatDateTime, formatRelative, hostOf } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@/hooks/use-query";
+import { useViewMode } from "@/hooks/use-view-mode";
 import { Submission, SubmissionStatus } from "@/types";
 import { RequireRole } from "@/components/require-role";
-import { PageLoading } from "@/components/spinner";
 import { PageHeader } from "@/components/page-header";
 import { PipelineBar } from "@/components/pipeline-bar";
+import { FilterTabs } from "@/components/filter-tabs";
+import { ViewToggle } from "@/components/view-toggle";
+import { CARD_GRID, SubmissionCard, SubmissionCardSkeletons } from "@/components/submission-card";
 import { StatusBadge, statusLabel } from "@/components/status-badge";
 import { RepoSlug } from "@/components/repo-slug";
 import { EmptyState } from "@/components/empty-state";
@@ -21,11 +23,12 @@ import { SubmissionFormDialog } from "@/components/submission-form-dialog";
 import { SubmissionSheet } from "@/components/submission-sheet";
 import { Button } from "@/components/ui/button";
 
-const PAGE_SIZE = 8;
+// 12 fills whole rows whether the grid shows 4, 3 or 2 cards per row
+const PAGE_SIZE = 12;
 
 export function StudentView() {
   return (
-    <RequireRole allow={isStudent} fallback={<PageLoading />}>
+    <RequireRole roles={["STUDENT"]}>
       <StudentPortal />
     </RequireRole>
   );
@@ -34,6 +37,7 @@ export function StudentView() {
 function StudentPortal() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<SubmissionStatus | undefined>();
+  const [view, setView] = useViewMode();
 
   const fetchStats = useCallback(async (signal: AbortSignal) => (await submissionsApi.getStats(signal)).data!.stats, []);
   const stats = useQuery(fetchStats);
@@ -91,6 +95,7 @@ function StudentPortal() {
   };
   const submissions = list.data?.submissions ?? [];
   const hasAny = (stats.data?.totalSubmissions ?? 0) > 0;
+  const initialLoad = !list.data && list.isLoading;
 
   return (
     <div className="space-y-8">
@@ -108,43 +113,80 @@ function StudentPortal() {
 
       {hasAny && <PipelineBar title="Your submissions" counts={counts} active={status} onSelect={filterBy} />}
 
-      {list.error && <ErrorBanner message={list.error} onRetry={refreshAll} />}
+      <div className="space-y-5">
+        {hasAny && (
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <FilterTabs
+                label="Filter by status"
+                value={status}
+                onChange={filterBy}
+                options={[
+                  { value: undefined, label: "All", count: stats.data?.totalSubmissions },
+                  { value: "PENDING", label: "Pending", count: counts?.pending },
+                  { value: "APPROVED", label: "Approved", count: counts?.approved },
+                  { value: "REJECTED", label: "Rejected", count: counts?.rejected },
+                ]}
+              />
+            </div>
+            <ViewToggle value={view} onChange={setView} />
+          </div>
+        )}
 
-      <div className="overflow-hidden rounded-xl border bg-card">
-        {!list.data && list.isLoading ? (
-          <ul className="divide-y">
-            {Array.from({ length: 3 }, (_, i) => (
-              <li key={i} className="px-5 py-5">
-                <div className="h-4 w-48 animate-pulse rounded bg-muted" />
-                <div className="mt-2.5 h-3 w-72 animate-pulse rounded bg-muted/70" />
-              </li>
-            ))}
-          </ul>
-        ) : list.data && submissions.length === 0 ? (
-          status ? (
-            <EmptyState
-              title={`No ${statusLabel[status].toLowerCase()} submissions`}
-              action={
-                <Button variant="outline" size="sm" onClick={() => filterBy(undefined)}>
-                  Show all submissions
-                </Button>
-              }
-            />
+        {list.error && <ErrorBanner message={list.error} onRetry={refreshAll} />}
+
+        {initialLoad ? (
+          view === "cards" ? (
+            <SubmissionCardSkeletons count={4} />
           ) : (
-            <EmptyState
-              icon={FolderGit2}
-              title="Submit your first project"
-              description="Add your GitHub repository and live link. A mentor will review it and leave feedback here."
-              action={
-                <Button onClick={openNew}>
-                  <Plus data-icon="inline-start" />
-                  New submission
-                </Button>
-              }
-            />
+            <ul className="divide-y rounded-xl border bg-card">
+              {Array.from({ length: 3 }, (_, i) => (
+                <li key={i} className="px-5 py-5">
+                  <div className="h-4 w-48 animate-pulse rounded bg-muted" />
+                  <div className="mt-2.5 h-3 w-72 animate-pulse rounded bg-muted/70" />
+                </li>
+              ))}
+            </ul>
           )
+        ) : list.data && submissions.length === 0 ? (
+          <div className="rounded-xl border bg-card">
+            {status ? (
+              <EmptyState
+                title={`No ${statusLabel[status].toLowerCase()} submissions`}
+                action={
+                  <Button variant="outline" size="sm" onClick={() => filterBy(undefined)}>
+                    Show all submissions
+                  </Button>
+                }
+              />
+            ) : (
+              <EmptyState
+                icon={FolderGit2}
+                title="Submit your first project"
+                description="Add your GitHub repository and live link. A mentor will review it and leave feedback here."
+                action={
+                  <Button onClick={openNew}>
+                    <Plus data-icon="inline-start" />
+                    New submission
+                  </Button>
+                }
+              />
+            )}
+          </div>
+        ) : view === "cards" ? (
+          <div className={cn(CARD_GRID, "transition-opacity", list.isLoading && "opacity-60")}>
+            {submissions.map((submission) => (
+              <SubmissionCard
+                key={submission.id}
+                submission={submission}
+                audience="student"
+                onOpen={() => openSheet(submission)}
+                onResubmit={() => openResubmit(submission)}
+              />
+            ))}
+          </div>
         ) : (
-          <ul className={cn("divide-y transition-opacity", list.isLoading && "opacity-60")}>
+          <ul className={cn("divide-y overflow-hidden rounded-xl border bg-card transition-opacity", list.isLoading && "opacity-60")}>
             {submissions.map((submission) => (
               <SubmissionRow
                 key={submission.id}
@@ -155,8 +197,9 @@ function StudentPortal() {
             ))}
           </ul>
         )}
+
         {list.data && list.data.pagination.totalPages > 1 && (
-          <div className="border-t px-5 py-3">
+          <div className="px-1">
             <Pagination pagination={list.data.pagination} onPageChange={setPage} disabled={list.isLoading} />
           </div>
         )}
