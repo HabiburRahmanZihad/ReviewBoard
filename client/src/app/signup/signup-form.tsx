@@ -12,6 +12,7 @@ import { FormBanner, FormField } from "@/components/form-field";
 import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/password-input";
 
 export function SignupForm() {
   const { user, isLoading, signup } = useAuth();
@@ -52,10 +53,10 @@ export function SignupForm() {
           <Input {...field("email")} type="email" placeholder="you@example.com" autoComplete="email" className="h-10" />
         </FormField>
         <FormField id="password" label="Password" error={errors.password} hint="At least 8 characters, with a letter and a number">
-          <Input {...field("password")} type="password" autoComplete="new-password" maxLength={72} className="h-10" />
+          <PasswordInput {...field("password")} autoComplete="new-password" maxLength={72} className="h-10" />
         </FormField>
         <FormField id="confirmPassword" label="Confirm password" error={errors.confirmPassword}>
-          <Input {...field("confirmPassword")} type="password" autoComplete="new-password" maxLength={72} className="h-10" />
+          <PasswordInput {...field("confirmPassword")} autoComplete="new-password" maxLength={72} className="h-10" />
         </FormField>
         <Button type="submit" className="h-10 w-full text-[14px]" disabled={isSubmitting}>
           {isSubmitting && <Spinner className="size-4 text-current" />}

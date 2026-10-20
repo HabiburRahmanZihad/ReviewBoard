@@ -166,6 +166,11 @@
   :focus-visible {
     outline-offset: 2px;
   }
+  /* Edge draws its own reveal button on password fields; PasswordInput provides one */
+  input::-ms-reveal,
+  input::-ms-clear {
+    display: none;
+  }
 }
 
 /* Small uppercase label for eyebrows, table headers and section titles */

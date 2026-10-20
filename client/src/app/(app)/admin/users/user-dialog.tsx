@@ -13,6 +13,7 @@ import { roleDescription, roleIcon } from "@/components/role-badge";
 import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/password-input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const ROLES: Role[] = ["STUDENT", "MENTOR", "ADMIN"];
@@ -93,7 +94,16 @@ function CreateForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: () =
       <RoleField value={form.values.role as Role} onChange={(r) => form.setValue("role", r)} error={errors.role} />
       <FormField id="password" label="Password" error={errors.password} hint="At least 8 characters, with a letter and a number">
         <div className="flex gap-2">
-          <Input {...field("password")} type={showPassword ? "text" : "password"} autoComplete="new-password" maxLength={72} className="font-mono" />
+          <div className="flex-1">
+            <PasswordInput
+              {...field("password")}
+              visible={showPassword}
+              onVisibleChange={setShowPassword}
+              autoComplete="new-password"
+              maxLength={72}
+              className="font-mono"
+            />
+          </div>
           <Button
             type="button"
             variant="outline"
@@ -158,7 +168,7 @@ function EditForm({
         disabledReason={isSelf ? "You can't change your own role. Another admin has to do it." : undefined}
       />
       <FormField id="password" label="New password" error={errors.password} hint="Leave blank to keep their current password">
-        <Input {...field("password")} type="password" autoComplete="new-password" maxLength={72} />
+        <PasswordInput {...field("password")} autoComplete="new-password" maxLength={72} />
       </FormField>
       <FormActions onCancel={onCancel} isSubmitting={isSubmitting} label="Save changes" />
     </form>
