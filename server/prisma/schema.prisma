@@ -1,0 +1,101 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ──────────────────────────────────────────────────────────────────
+
+enum Role {
+  STUDENT
+  MENTOR
+  ADMIN
+}
+
+enum SubmissionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ─── Models ─────────────────────────────────────────────────────────────────
+
+/// User model - represents both Students and Mentors in the system.
+/// The `role` field controls access via RBAC.
+/// One User (Student) can have many Submissions (1:N).
+/// One User (Mentor) can review many Submissions (1:N).
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(STUDENT)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  submissions         Submission[] @relation("StudentSubmissions")
+  reviewedSubmissions Submission[] @relation("MentorReviews")
+  feedbacks           Feedback[]
+
+  @@map("users")
+}
+
+/// Submission model - a project submission from a Student.
+/// Each Submission belongs to exactly one Student (many-to-one).
+/// Each Submission can be reviewed by one Mentor (many-to-one, optional).
+/// Each Submission can have many Feedback entries (one-to-many).
+model Submission {
+  id          String           @id @default(uuid())
+  projectName String           @map("project_name")
+  repoUrl     String           @map("repo_url")
+  liveUrl     String?          @map("live_url")
+  description String
+  status      SubmissionStatus @default(PENDING)
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  // Foreign keys
+  studentId  String  @map("student_id")
+  reviewerId String? @map("reviewer_id")
+
+  // Relations
+  student   User       @relation("StudentSubmissions", fields: [studentId], references: [id], onDelete: Cascade)
+  reviewer  User?      @relation("MentorReviews", fields: [reviewerId], references: [id], onDelete: SetNull)
+  feedbacks Feedback[]
+
+  // Prevent duplicate submissions: one student cannot submit the same repo URL twice
+  @@unique([studentId, repoUrl])
+  @@index([status])
+  @@index([studentId])
+  @@map("submissions")
+}
+
+/// Feedback model - review feedback from a Mentor on a Submission.
+/// Each Feedback belongs to exactly one Submission (many-to-one).
+/// Each Feedback belongs to exactly one User/Mentor (many-to-one).
+/// This creates a many-to-many-like relationship between Mentors and Submissions via Feedback.
+model Feedback {
+  id        String   @id @default(uuid())
+  comment   String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Foreign keys
+  submissionId String  @map("submission_id")
+  mentorId     String? @map("mentor_id")
+
+  // Relations
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  mentor     User?      @relation(fields: [mentorId], references: [id], onDelete: SetNull)
+
+  @@index([submissionId])
+  @@index([mentorId])
+  @@map("feedbacks")
+}
