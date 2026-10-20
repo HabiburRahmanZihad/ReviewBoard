@@ -11,6 +11,11 @@ export interface JwtPayload {
   role: Role;
 }
 
+// Roles allowed to review submissions. The seeded ADMIN can do everything a MENTOR can.
+export const REVIEWER_ROLES: Role[] = [Role.MENTOR, Role.ADMIN];
+
+export const isReviewer = (role: Role): boolean => REVIEWER_ROLES.includes(role);
+
 // Extend Express Request to include authenticated user data
 declare global {
   namespace Express {
@@ -45,10 +50,10 @@ export const authenticate = async (
       return;
     }
 
-    const token = authHeader.split(" ")[1];
+    const token = authHeader.slice("Bearer ".length).trim();
 
-    // Verify token signature and expiry
-    const decoded = jwt.verify(token, config.jwt.secret) as JwtPayload;
+    // Verify token signature and expiry (pin the algorithm we sign with)
+    const decoded = jwt.verify(token, config.jwt.secret, { algorithms: ["HS256"] }) as JwtPayload;
 
     // Fetch the full user from the database to ensure they still exist
     // and their role hasn't changed since token issuance
@@ -108,7 +113,7 @@ export const authorize = (...allowedRoles: Role[]) => {
     if (!allowedRoles.includes(req.user.role)) {
       res.status(403).json({
         success: false,
-        message: `Access denied. Required role(s): ${allowedRoles.join(", ")}. Your role: ${req.user.role}.`,
+        message: "You don't have permission to perform this action.",
       });
       return;
     }

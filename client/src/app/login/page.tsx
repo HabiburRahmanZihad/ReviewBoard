@@ -1,148 +1,104 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
+import { useZodForm } from "@/hooks/use-zod-form";
+import { loginSchema } from "@/lib/validation";
+import { homePathFor } from "@/lib/roles";
+import { showToast } from "@/lib/alerts";
+import { FormBanner, FormField } from "@/components/form-field";
+import { FullPageSpinner, Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { showToast, showError } from "@/lib/alerts";
+
+const DEMO_ACCOUNTS = [
+  { label: "Mentor", email: "mentor@reviewboard.com", password: "mentor123" },
+  { label: "Student", email: "student@reviewboard.com", password: "student123" },
+  { label: "Admin", email: "admin@reviewboard.com", password: "admin123" },
+];
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const { login } = useAuth();
+  const { user, isLoading, login } = useAuth();
   const router = useRouter();
+  const form = useZodForm(loginSchema, { email: "", password: "" });
+  const { errors, field, formError, isSubmitting } = form;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setIsSubmitting(true);
+  // Already signed in (or just signed in) → go to the right home page for the role
+  useEffect(() => {
+    if (!isLoading && user) router.replace(homePathFor(user));
+  }, [isLoading, user, router]);
 
-    try {
-      await login(email, password);
-      showToast("Signed in successfully!", "success");
-      router.push("/");
-    } catch (err: unknown) {
-      const apiErr = err as { message?: string };
-      const msg = apiErr.message || "Login failed. Please check your credentials.";
-      setError(msg);
-      showError("Login Failed", msg);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  const onSubmit = form.handleSubmit(async ({ email, password }) => {
+    const signedIn = await login(email, password);
+    showToast(`Welcome back, ${signedIn.name}!`, "success");
+  });
+
+  if (isLoading || user) return <FullPageSpinner />;
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
+    <div className="flex min-h-screen items-center justify-center px-4 py-10">
       <div className="w-full max-w-md space-y-6">
-        {/* Logo / Brand */}
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold tracking-tight bg-linear-to-r from-primary to-primary/60 bg-clip-text text-transparent">
             ReviewBoard
           </h1>
-          <p className="text-muted-foreground">
-            Project Submission & Review Dashboard
-          </p>
+          <p className="text-muted-foreground">Project Submission & Review Dashboard</p>
         </div>
 
         <Card className="border-border/50 shadow-xl shadow-black/5">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl">Sign In</CardTitle>
-            <CardDescription>
-              Enter your credentials to access your account
-            </CardDescription>
+            <CardTitle className="text-2xl">Sign in</CardTitle>
+            <CardDescription>Enter your credentials to access your account</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {error && (
-                <div className="rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
-                  {error}
-                </div>
-              )}
+            <form onSubmit={onSubmit} className="space-y-4" noValidate>
+              <FormBanner message={formError} />
 
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                  className="h-11"
-                />
-              </div>
+              <FormField id="email" label="Email" error={errors.email}>
+                <Input {...field("email")} type="email" placeholder="you@example.com" autoComplete="email" className="h-10" />
+              </FormField>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  autoComplete="current-password"
-                  minLength={6}
-                  className="h-11"
-                />
-              </div>
+              <FormField id="password" label="Password" error={errors.password}>
+                <Input {...field("password")} type="password" placeholder="••••••••" autoComplete="current-password" className="h-10" />
+              </FormField>
 
-              <Button
-                type="submit"
-                className="w-full h-11 text-base font-medium"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <span className="flex items-center gap-2">
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    Signing in...
-                  </span>
-                ) : (
-                  "Sign In"
-                )}
+              <Button type="submit" className="w-full h-10 text-base" disabled={isSubmitting}>
+                {isSubmitting && <Spinner className="size-4 text-current" />}
+                {isSubmitting ? "Signing in…" : "Sign in"}
               </Button>
             </form>
 
             <div className="mt-6 text-center text-sm text-muted-foreground">
               Don&apos;t have an account?{" "}
-              <Link
-                href="/signup"
-                className="font-medium text-primary underline-offset-4 hover:underline"
-              >
-                Create one
+              <Link href="/signup" className="font-medium text-primary underline-offset-4 hover:underline">
+                Sign up as a student
               </Link>
             </div>
           </CardContent>
         </Card>
 
-        {/* Demo credentials hint */}
+        {/* Demo credentials — click to fill the form */}
         <Card className="border-border/30 bg-muted/30">
-          <CardContent className="py-4">
-            <p className="text-xs text-muted-foreground text-center mb-2 font-medium">
-              Demo Accounts
-            </p>
-            <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-              <div>
-                <span className="font-medium">Mentor:</span>
-                <br />
-                mentor@reviewboard.com
-                <br />
-                mentor123
-              </div>
-              <div>
-                <span className="font-medium">Student:</span>
-                <br />
-                student@reviewboard.com
-                <br />
-                student123
-              </div>
+          <CardContent>
+            <p className="text-xs text-muted-foreground text-center mb-3 font-medium">Demo accounts (click to fill)</p>
+            <div className="grid grid-cols-3 gap-2">
+              {DEMO_ACCOUNTS.map((account) => (
+                <button
+                  key={account.label}
+                  type="button"
+                  onClick={() => {
+                    form.setValue("email", account.email);
+                    form.setValue("password", account.password);
+                  }}
+                  className="rounded-md border border-border/50 px-2 py-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                >
+                  <span className="block font-medium text-foreground">{account.label}</span>
+                  {account.password}
+                </button>
+              ))}
             </div>
           </CardContent>
         </Card>

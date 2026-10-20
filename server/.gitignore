@@ -7,9 +7,6 @@ node_modules/
 # Build output
 dist/
 
-# Prisma
-prisma/migrations/
-
 # IDE
 .vscode/
 .idea/

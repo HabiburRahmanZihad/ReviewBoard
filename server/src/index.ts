@@ -1,11 +1,18 @@
 import express from "express";
 import cors from "cors";
-import rateLimit from "express-rate-limit";
 import { config } from "./config";
+import { globalLimiter } from "./middleware/rate-limit";
+import { errorHandler } from "./middleware/error-handler";
 import authRoutes from "./routes/auth";
 import submissionRoutes from "./routes/submissions";
 
 const app = express();
+
+// Behind a reverse proxy (Render, Railway, Nginx…) the client IP arrives in
+// X-Forwarded-For; trust one hop so rate limits apply per user, not per proxy.
+if (process.env.TRUST_PROXY === "true") {
+  app.set("trust proxy", 1);
+}
 
 // ─── Global Middleware ──────────────────────────────────────────────────────
 
@@ -19,46 +26,16 @@ app.use(
   })
 );
 
-// Parse JSON request bodies
-app.use(express.json({ limit: "10mb" }));
+// Parse JSON request bodies — submissions are small, so keep the limit tight
+app.use(express.json({ limit: "100kb" }));
 
-// Parse URL-encoded request bodies
-app.use(express.urlencoded({ extended: true }));
-
-// ─── Rate Limiting ──────────────────────────────────────────────────────────
-
-// Global rate limiter
-const globalLimiter = rateLimit({
-  windowMs: config.rateLimit.windowMs,
-  max: config.rateLimit.maxRequests,
-  message: {
-    success: false,
-    message: "Too many requests. Please try again later.",
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+// Global rate limiter (route-specific limiters live next to their routes)
 app.use(globalLimiter);
-
-// Stricter rate limiter for submission endpoint
-const submissionLimiter = rateLimit({
-  windowMs: config.rateLimit.windowMs,
-  max: config.rateLimit.submissionMaxRequests,
-  message: {
-    success: false,
-    message: "Too many submission attempts. Please wait before submitting again.",
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
 
 // ─── Routes ─────────────────────────────────────────────────────────────────
 
 app.use("/api/auth", authRoutes);
 app.use("/api/submissions", submissionRoutes);
-
-// Apply stricter rate limit to submission creation
-app.use("/api/submissions", submissionLimiter);
 
 // ─── Health Check ───────────────────────────────────────────────────────────
 
@@ -81,13 +58,7 @@ app.use((_req, res) => {
 
 // ─── Global Error Handler ───────────────────────────────────────────────────
 
-app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error("Unhandled error:", err);
-  res.status(500).json({
-    success: false,
-    message: "An unexpected error occurred.",
-  });
-});
+app.use(errorHandler);
 
 // ─── Start Server ───────────────────────────────────────────────────────────
 

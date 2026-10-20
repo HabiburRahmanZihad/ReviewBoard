@@ -1,11 +1,13 @@
 "use client";
 
-import { useAuth } from "@/hooks/use-auth";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { LogOut } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { homePathFor, roleLabel } from "@/lib/roles";
+import { confirmAction, showToast } from "@/lib/alerts";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-
-import { confirmAction, showToast } from "@/lib/alerts";
 
 export function Navbar() {
   const { user, logout } = useAuth();
@@ -15,7 +17,7 @@ export function Navbar() {
 
   const handleLogout = async () => {
     const confirmed = await confirmAction({
-      title: "Sign Out?",
+      title: "Sign out?",
       text: "You will need to enter your credentials to log back in.",
       icon: "question",
       confirmButtonText: "Yes, sign out",
@@ -30,27 +32,28 @@ export function Navbar() {
   };
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
+    <nav className="sticky top-0 z-40 border-b border-border/50 bg-background/80 backdrop-blur-xl">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
+        <div className="flex h-16 items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <h1
-              className="text-xl font-bold tracking-tight cursor-pointer bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent"
-              onClick={() => router.push("/")}
+            <Link
+              href={homePathFor(user)}
+              className="text-xl font-bold tracking-tight bg-linear-to-r from-primary to-primary/60 bg-clip-text text-transparent"
             >
               ReviewBoard
-            </h1>
+            </Link>
             <Badge variant="outline" className="text-xs font-normal">
-              {user.role === "MENTOR" ? "Mentor" : "Student"}
+              {roleLabel[user.role]}
             </Badge>
           </div>
 
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground hidden sm:inline">
+          <div className="flex items-center gap-4 min-w-0">
+            <span className="text-sm text-muted-foreground hidden sm:inline truncate">
               {user.name} ({user.email})
             </span>
             <Button variant="outline" size="sm" onClick={handleLogout}>
-              Sign Out
+              <LogOut data-icon="inline-start" />
+              Sign out
             </Button>
           </div>
         </div>

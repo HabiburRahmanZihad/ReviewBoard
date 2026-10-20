@@ -3,29 +3,17 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
+import { homePathFor } from "@/lib/roles";
+import { FullPageSpinner } from "@/components/spinner";
 
+// Entry point: send each user to the right place for their role.
 export default function Home() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (isLoading) return;
-
-    if (!user) {
-      router.replace("/login");
-    } else if (user.role === "MENTOR") {
-      router.replace("/dashboard");
-    } else {
-      router.replace("/submissions");
-    }
+    if (!isLoading) router.replace(homePathFor(user));
   }, [user, isLoading, router]);
 
-  return (
-    <div className="flex min-h-screen items-center justify-center">
-      <div className="flex flex-col items-center gap-4">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-        <p className="text-muted-foreground">Loading...</p>
-      </div>
-    </div>
-  );
+  return <FullPageSpinner />;
 }

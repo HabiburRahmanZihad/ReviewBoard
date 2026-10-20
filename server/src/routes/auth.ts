@@ -1,168 +1,111 @@
 import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { User } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { config } from "../config";
-import { validate, loginValidation, signupValidation } from "../middleware/validate";
-import { authenticate } from "../middleware/auth";
-import { JwtPayload } from "../middleware/auth";
+import { HttpError, isUniqueViolation } from "../lib/http-error";
+import { validateBody } from "../middleware/validate";
+import { authLimiter } from "../middleware/rate-limit";
+import { authenticate, JwtPayload } from "../middleware/auth";
+import { loginSchema, signupSchema } from "../validation/schemas";
 
 const router = Router();
 
+const BCRYPT_COST = 12;
+
+// Compared against when the email doesn't exist, so a login attempt takes the
+// same time whether or not the account exists (prevents user enumeration).
+const DUMMY_HASH = bcrypt.hashSync("dummy-password-for-timing", BCRYPT_COST);
+
+const signToken = (user: Pick<User, "id" | "role">): string => {
+  const payload: JwtPayload = { userId: user.id, role: user.role };
+  return jwt.sign(payload, config.jwt.secret, {
+    expiresIn: config.jwt.expiresIn,
+  } as jwt.SignOptions);
+};
+
+const publicUser = { id: true, name: true, email: true, role: true, createdAt: true } as const;
+
 // ─── POST /api/auth/signup ──────────────────────────────────────────────────
 // Register a new student account.
-// Mentors are seeded directly into the database (as per requirements).
+// Mentors/admins are seeded directly into the database (as per requirements),
+// so this endpoint can never create a privileged user — role is not accepted.
 
-router.post("/signup", validate(signupValidation), async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { name, email, password } = req.body;
+router.post("/signup", authLimiter, validateBody(signupSchema), async (req: Request, res: Response) => {
+  const { name, email, password } = req.body;
 
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email: email.toLowerCase().trim() },
-    });
-
-    if (existingUser) {
-      res.status(409).json({
-        success: false,
-        message: "An account with this email already exists.",
-      });
-      return;
-    }
-
-    // Hash password with a cost factor of 12
-    const hashedPassword = await bcrypt.hash(password, 12);
-
-    // Create user — role defaults to STUDENT
-    const user = await prisma.user.create({
-      data: {
-        name: name.trim(),
-        email: email.toLowerCase().trim(),
-        password: hashedPassword,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        createdAt: true,
-      },
-    });
-
-    // Generate JWT
-    const payload: JwtPayload = { userId: user.id, role: user.role };
-    const token = jwt.sign(payload, config.jwt.secret, {
-      expiresIn: config.jwt.expiresIn,
-    } as jwt.SignOptions);
-
-    res.status(201).json({
-      success: true,
-      message: "Account created successfully.",
-      data: { user, token },
-    });
-  } catch (error) {
-    console.error("Signup error:", error);
-    res.status(500).json({
-      success: false,
-      message: "An error occurred during signup.",
+  const existingUser = await prisma.user.findUnique({ where: { email } });
+  if (existingUser) {
+    throw new HttpError(409, "An account with this email already exists.", {
+      email: "An account with this email already exists.",
     });
   }
+
+  const hashedPassword = await bcrypt.hash(password, BCRYPT_COST);
+
+  let user;
+  try {
+    // Role defaults to STUDENT in the schema
+    user = await prisma.user.create({
+      data: { name, email, password: hashedPassword },
+      select: publicUser,
+    });
+  } catch (error) {
+    // Two signups with the same email raced past the check above
+    if (isUniqueViolation(error)) {
+      throw new HttpError(409, "An account with this email already exists.", {
+        email: "An account with this email already exists.",
+      });
+    }
+    throw error;
+  }
+
+  res.status(201).json({
+    success: true,
+    message: "Account created successfully.",
+    data: { user, token: signToken(user) },
+  });
 });
 
 // ─── POST /api/auth/login ───────────────────────────────────────────────────
-// Authenticate a user (Student or Mentor) and return a JWT.
+// Authenticate any user (Student, Mentor, Admin) and return a JWT.
 
-router.post("/login", validate(loginValidation), async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { email, password } = req.body;
+router.post("/login", authLimiter, validateBody(loginSchema), async (req: Request, res: Response) => {
+  const { email, password } = req.body;
 
-    // Find user by email
-    const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase().trim() },
-    });
+  const user = await prisma.user.findUnique({ where: { email } });
+  const isPasswordValid = await bcrypt.compare(password, user?.password ?? DUMMY_HASH);
 
-    if (!user) {
-      res.status(401).json({
-        success: false,
-        message: "Invalid email or password.",
-      });
-      return;
-    }
-
-    // Verify password using bcrypt
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-
-    if (!isPasswordValid) {
-      res.status(401).json({
-        success: false,
-        message: "Invalid email or password.",
-      });
-      return;
-    }
-
-    // Generate JWT with user ID and role in payload
-    const payload: JwtPayload = { userId: user.id, role: user.role };
-    const token = jwt.sign(payload, config.jwt.secret, {
-      expiresIn: config.jwt.expiresIn,
-    } as jwt.SignOptions);
-
-    res.json({
-      success: true,
-      message: "Login successful.",
-      data: {
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        },
-        token,
-      },
-    });
-  } catch (error) {
-    console.error("Login error:", error);
-    res.status(500).json({
-      success: false,
-      message: "An error occurred during login.",
-    });
+  // Same message for "no such user" and "wrong password"
+  if (!user || !isPasswordValid) {
+    throw new HttpError(401, "Invalid email or password.");
   }
+
+  res.json({
+    success: true,
+    message: "Login successful.",
+    data: {
+      user: { id: user.id, name: user.name, email: user.email, role: user.role },
+      token: signToken(user),
+    },
+  });
 });
 
 // ─── GET /api/auth/me ───────────────────────────────────────────────────────
 // Get the currently authenticated user's profile.
 
-router.get("/me", authenticate, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user!.id },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        createdAt: true,
-      },
-    });
+router.get("/me", authenticate, async (req: Request, res: Response) => {
+  const user = await prisma.user.findUnique({
+    where: { id: req.user!.id },
+    select: publicUser,
+  });
 
-    if (!user) {
-      res.status(404).json({
-        success: false,
-        message: "User not found.",
-      });
-      return;
-    }
-
-    res.json({
-      success: true,
-      data: { user },
-    });
-  } catch (error) {
-    console.error("Get profile error:", error);
-    res.status(500).json({
-      success: false,
-      message: "An error occurred while fetching your profile.",
-    });
+  if (!user) {
+    throw new HttpError(404, "User not found.");
   }
+
+  res.json({ success: true, data: { user } });
 });
 
 export default router;

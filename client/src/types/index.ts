@@ -10,6 +10,8 @@ export interface User {
   createdAt?: string;
 }
 
+type UserSummary = Pick<User, "id" | "name" | "email">;
+
 // ─── Submission Types ───────────────────────────────────────────────────────
 
 export type SubmissionStatus = "PENDING" | "APPROVED" | "REJECTED";
@@ -25,8 +27,9 @@ export interface Submission {
   updatedAt: string;
   studentId: string;
   reviewerId: string | null;
-  student: Pick<User, "id" | "name" | "email">;
-  reviewer: Pick<User, "id" | "name" | "email"> | null;
+  student: UserSummary;
+  reviewer: UserSummary | null;
+  /** List rows carry only the latest feedback; the detail endpoint returns the full history. */
   feedbacks?: Feedback[];
   _count?: {
     feedbacks: number;
@@ -36,8 +39,13 @@ export interface Submission {
 export interface CreateSubmissionInput {
   projectName: string;
   repoUrl: string;
-  liveUrl?: string;
+  liveUrl: string;
   description: string;
+}
+
+export interface ReviewInput {
+  status: "APPROVED" | "REJECTED";
+  comment?: string;
 }
 
 // ─── Feedback Types ─────────────────────────────────────────────────────────
@@ -49,7 +57,7 @@ export interface Feedback {
   updatedAt: string;
   submissionId: string;
   mentorId: string | null;
-  mentor: Pick<User, "id" | "name" | "email"> | null;
+  mentor: UserSummary | null;
 }
 
 // ─── API Response Types ─────────────────────────────────────────────────────
@@ -74,14 +82,16 @@ export interface SubmissionListResponse {
   pagination: PaginationInfo;
 }
 
+export interface Stats {
+  totalPending: number;
+  totalApproved: number;
+  totalRejected: number;
+  totalSubmissions: number;
+  totalStudents: number;
+}
+
 export interface StatsResponse {
-  stats: {
-    totalPending: number;
-    totalApproved: number;
-    totalRejected: number;
-    totalSubmissions: number;
-    totalStudents: number;
-  };
+  stats: Stats;
 }
 
 export interface AuthResponse {
