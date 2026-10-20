@@ -67,16 +67,18 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Password is required."),
 });
 
+const password = z
+  .string()
+  .min(8, "Password must be at least 8 characters.")
+  .max(72, "Password must be at most 72 characters.")
+  .regex(/[A-Za-z]/, "Password must contain at least one letter.")
+  .regex(/\d/, "Password must contain at least one number.");
+
 export const signupSchema = z
   .object({
     name: text("Name", 2, 50),
     email,
-    password: z
-      .string()
-      .min(8, "Password must be at least 8 characters.")
-      .max(72, "Password must be at most 72 characters.")
-      .regex(/[A-Za-z]/, "Password must contain at least one letter.")
-      .regex(/\d/, "Password must contain at least one number."),
+    password,
     confirmPassword: z.string().min(1, "Please confirm your password."),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -104,6 +106,23 @@ export const submissionSchema = z.object({
       if (problem) ctx.addIssue({ code: "custom", message: problem });
     }),
   description: text("Description", 20, 2000),
+});
+
+// ─── Admin ──────────────────────────────────────────────────────────────────
+
+const role = z.enum(["STUDENT", "MENTOR", "ADMIN"], { error: "Choose a role." });
+
+export const createUserSchema = z.object({ name: text("Name", 2, 50), email, role, password });
+
+// Leaving the password blank keeps the current one
+export const editUserSchema = z.object({
+  name: text("Name", 2, 50),
+  role,
+  password: z
+    .string()
+    .refine((v) => v === "" || v.length >= 8, "Password must be at least 8 characters.")
+    .refine((v) => v.length <= 72, "Password must be at most 72 characters.")
+    .refine((v) => v === "" || (/[A-Za-z]/.test(v) && /\d/.test(v)), "Password must contain a letter and a number."),
 });
 
 export const COMMENT_MIN = 5;

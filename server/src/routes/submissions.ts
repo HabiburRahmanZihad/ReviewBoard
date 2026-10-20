@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { SubmissionStatus, Role, Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { HttpError, isUniqueViolation } from "../lib/http-error";
+import { listInclude, userSummary } from "../lib/selects";
 import { authenticate, authorize, isReviewer, REVIEWER_ROLES } from "../middleware/auth";
 import { validateBody } from "../middleware/validate";
 import { submissionLimiter } from "../middleware/rate-limit";
@@ -17,18 +18,6 @@ const router = Router();
 
 // All submission routes require authentication
 router.use(authenticate);
-
-const userSummary = { select: { id: true, name: true, email: true } } as const;
-
-// Shape returned for list rows: the latest feedback is included so both the
-// student card and the mentor table can show it without an extra request.
-// Prisma batches each relation into one extra query for the whole page (no N+1).
-const listInclude = {
-  student: userSummary,
-  reviewer: userSummary,
-  feedbacks: { take: 1, orderBy: { createdAt: "desc" }, include: { mentor: userSummary } },
-  _count: { select: { feedbacks: true } },
-} satisfies Prisma.SubmissionInclude;
 
 const duplicateError = (existingStatus?: SubmissionStatus): HttpError => {
   const message =
@@ -183,13 +172,17 @@ router.get("/", async (req: Request, res: Response) => {
 });
 
 // ─── GET /api/submissions/stats ─────────────────────────────────────────────
-// Aggregated statistics (reviewers only). One GROUP BY query does the counting
-// in the database instead of loading rows into memory.
+// Aggregated counts by status. One GROUP BY query does the counting in the
+// database instead of loading rows into memory. Scoped like the list:
+// reviewers get platform-wide numbers, students get counts for their own work.
 
-router.get("/stats", authorize(...REVIEWER_ROLES), async (_req: Request, res: Response) => {
+router.get("/stats", async (req: Request, res: Response) => {
+  const reviewer = isReviewer(req.user!.role);
+  const where: Prisma.SubmissionWhereInput = reviewer ? {} : { studentId: req.user!.id };
+
   const [statusCounts, totalStudents] = await Promise.all([
-    prisma.submission.groupBy({ by: ["status"], _count: { _all: true } }),
-    prisma.user.count({ where: { role: Role.STUDENT } }),
+    prisma.submission.groupBy({ by: ["status"], where, _count: { _all: true } }),
+    reviewer ? prisma.user.count({ where: { role: Role.STUDENT } }) : Promise.resolve(1),
   ]);
 
   const countFor = (status: SubmissionStatus) =>

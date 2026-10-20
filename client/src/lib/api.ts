@@ -10,6 +10,12 @@ import {
   Feedback,
   SubmissionStatus,
   ReviewInput,
+  AdminOverview,
+  AdminUser,
+  FeedbackListResponse,
+  Role,
+  UserInput,
+  UserListResponse,
 } from "@/types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
@@ -105,6 +111,16 @@ export interface ListParams {
   search?: string;
 }
 
+/** Builds "?a=1&b=2", skipping empty values. */
+function toQuery(params: Record<string, string | number | undefined>): string {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== "") query.set(key, String(value));
+  }
+  const qs = query.toString();
+  return qs ? `?${qs}` : "";
+}
+
 export const submissionsApi = {
   create: (input: CreateSubmissionInput) =>
     request<{ submission: Submission }>("/submissions", { method: "POST", body: input }),
@@ -112,14 +128,8 @@ export const submissionsApi = {
   resubmit: (id: string, input: CreateSubmissionInput) =>
     request<{ submission: Submission }>(`/submissions/${id}`, { method: "PUT", body: input }),
 
-  list: (params: ListParams = {}, signal?: AbortSignal) => {
-    const query = new URLSearchParams();
-    if (params.page) query.set("page", String(params.page));
-    if (params.limit) query.set("limit", String(params.limit));
-    if (params.status) query.set("status", params.status);
-    if (params.search) query.set("search", params.search);
-    return request<SubmissionListResponse>(`/submissions?${query}`, { signal });
-  },
+  list: (params: ListParams = {}, signal?: AbortSignal) =>
+    request<SubmissionListResponse>(`/submissions${toQuery({ ...params })}`, { signal }),
 
   getById: (id: string, signal?: AbortSignal) =>
     request<{ submission: Submission }>(`/submissions/${id}`, { signal }),
@@ -130,5 +140,38 @@ export const submissionsApi = {
   addFeedback: (id: string, comment: string) =>
     request<{ feedback: Feedback }>(`/submissions/${id}/feedback`, { method: "POST", body: { comment } }),
 
+  /** Reviewers get platform-wide counts; students get counts for their own submissions. */
   getStats: (signal?: AbortSignal) => request<StatsResponse>("/submissions/stats", { signal }),
+};
+
+// ─── Admin API ──────────────────────────────────────────────────────────────
+
+export const adminApi = {
+  overview: (signal?: AbortSignal) =>
+    request<AdminOverview>(
+      `/admin/overview${toQuery({ tz: Intl.DateTimeFormat().resolvedOptions().timeZone })}`,
+      { signal }
+    ),
+
+  listUsers: (params: { page?: number; limit?: number; role?: Role; search?: string }, signal?: AbortSignal) =>
+    request<UserListResponse>(`/admin/users${toQuery({ ...params })}`, { signal }),
+
+  createUser: (input: UserInput) =>
+    request<{ user: AdminUser }>("/admin/users", { method: "POST", body: input }),
+
+  updateUser: (id: string, input: UserInput) =>
+    request<{ user: AdminUser }>(`/admin/users/${id}`, { method: "PATCH", body: input }),
+
+  deleteUser: (id: string) => request(`/admin/users/${id}`, { method: "DELETE" }),
+
+  /** Move a submission to any status — e.g. reopen a decision. Rejecting needs a comment. */
+  setStatus: (id: string, input: { status: SubmissionStatus; comment?: string }) =>
+    request<{ submission: Submission }>(`/admin/submissions/${id}/status`, { method: "PATCH", body: input }),
+
+  deleteSubmission: (id: string) => request(`/admin/submissions/${id}`, { method: "DELETE" }),
+
+  listFeedback: (params: { page?: number; limit?: number; search?: string }, signal?: AbortSignal) =>
+    request<FeedbackListResponse>(`/admin/feedback${toQuery({ ...params })}`, { signal }),
+
+  deleteFeedback: (id: string) => request(`/admin/feedback/${id}`, { method: "DELETE" }),
 };

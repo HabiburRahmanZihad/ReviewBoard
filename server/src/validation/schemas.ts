@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { SubmissionStatus } from "@prisma/client";
+import { Role, SubmissionStatus } from "@prisma/client";
 
 // ─── GitHub URL Canonicalisation ────────────────────────────────────────────
 // GitHub usernames: alphanumerics and single hyphens, no leading/trailing hyphen, max 39.
@@ -86,19 +86,32 @@ const email = z
   .max(254, "Email is too long.")
   .pipe(z.email("Please enter a valid email address."));
 
+const name = text("Name", 2, 50).transform((s) => s.replace(/\s+/g, " "));
+
+// bcrypt only uses the first 72 bytes of a password, so cap it there
+const password = z
+  .string({ error: "Password is required." })
+  .min(8, "Password must be at least 8 characters.")
+  .max(72, "Password must be at most 72 characters.")
+  .regex(/[A-Za-z]/, "Password must contain at least one letter.")
+  .regex(/\d/, "Password must contain at least one number.");
+
+// Shared list-query fields: ?page=&limit=&search=
+const pagination = {
+  page: z.coerce.number().int().min(1, "page must be 1 or greater.").default(1),
+  limit: z.coerce.number().int().min(1).max(50, "limit must be at most 50.").default(10),
+};
+
+const search = z
+  .string()
+  .trim()
+  .max(100, "search must be at most 100 characters.")
+  .optional()
+  .transform((value) => value || undefined);
+
 // ─── Auth ───────────────────────────────────────────────────────────────────
 
-export const signupSchema = z.object({
-  name: text("Name", 2, 50).transform((s) => s.replace(/\s+/g, " ")),
-  email,
-  // bcrypt only uses the first 72 bytes of a password, so cap it there
-  password: z
-    .string({ error: "Password is required." })
-    .min(8, "Password must be at least 8 characters.")
-    .max(72, "Password must be at most 72 characters.")
-    .regex(/[A-Za-z]/, "Password must contain at least one letter.")
-    .regex(/\d/, "Password must contain at least one number."),
-});
+export const signupSchema = z.object({ name, email, password });
 
 export const loginSchema = z.object({
   email,
@@ -135,23 +148,35 @@ export const submissionSchema = z.object({
 });
 
 export const listSubmissionsQuerySchema = z.object({
-  page: z.coerce.number().int().min(1, "page must be 1 or greater.").default(1),
-  limit: z.coerce.number().int().min(1).max(50, "limit must be at most 50.").default(10),
+  ...pagination,
   status: z
     .string()
     .trim()
     .toUpperCase()
     .pipe(z.enum(SubmissionStatus, { error: "status must be one of PENDING, APPROVED, REJECTED." }))
     .optional(),
-  search: z
-    .string()
-    .trim()
-    .max(100, "search must be at most 100 characters.")
-    .optional()
-    .transform((value) => value || undefined),
+  search,
 });
 
 const comment = text("Comment", 5, 2000);
+
+// Optional comment; an empty string means "no comment"
+const optionalComment = z
+  .string()
+  .trim()
+  .optional()
+  .transform((value) => value || undefined)
+  .pipe(comment.optional());
+
+const requireReasonToReject = (data: { status: SubmissionStatus; comment?: string }, ctx: z.RefinementCtx) => {
+  if (data.status === SubmissionStatus.REJECTED && !data.comment) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["comment"],
+      message: "A reason is required when rejecting, so the student knows what to fix.",
+    });
+  }
+};
 
 export const feedbackSchema = z.object({ comment });
 
@@ -160,22 +185,57 @@ export const reviewSchema = z
     status: z.enum([SubmissionStatus.APPROVED, SubmissionStatus.REJECTED], {
       error: "Status must be either APPROVED or REJECTED.",
     }),
-    // Optional when approving; an empty string means "no comment"
-    comment: z
-      .string()
-      .trim()
-      .optional()
-      .transform((value) => value || undefined)
-      .pipe(comment.optional()),
+    comment: optionalComment,
   })
-  .superRefine((data, ctx) => {
-    if (data.status === SubmissionStatus.REJECTED && !data.comment) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["comment"],
-        message: "A reason is required when rejecting, so the student knows what to fix.",
-      });
-    }
-  });
+  .superRefine(requireReasonToReject);
+
+// ─── Admin ──────────────────────────────────────────────────────────────────
+
+const role = z.enum(Role, { error: "Role must be one of STUDENT, MENTOR, ADMIN." });
+
+export const listUsersQuerySchema = z.object({
+  ...pagination,
+  role: z.string().trim().toUpperCase().pipe(role).optional(),
+  search,
+});
+
+export const createUserSchema = z.object({ name, email, password, role });
+
+export const updateUserSchema = z
+  .object({
+    name: name.optional(),
+    role: role.optional(),
+    // Lets an admin reset a forgotten password
+    password: password.optional(),
+  })
+  .refine((data) => Object.values(data).some((value) => value !== undefined), "Nothing to update.");
+
+// An admin can move a submission to any status, e.g. to reopen a decision made in error
+export const overrideStatusSchema = z
+  .object({
+    status: z.enum(SubmissionStatus, { error: "status must be one of PENDING, APPROVED, REJECTED." }),
+    comment: optionalComment,
+  })
+  .superRefine(requireReasonToReject);
+
+export const listFeedbackQuerySchema = z.object({ ...pagination, search });
+
+// IANA timezone used to group activity by the viewer's local day, e.g. "Asia/Dhaka"; falls back to UTC
+export const overviewQuerySchema = z.object({
+  tz: z
+    .string()
+    .trim()
+    .max(64)
+    .optional()
+    .transform((value) => {
+      if (!value) return "UTC";
+      try {
+        new Intl.DateTimeFormat("en", { timeZone: value });
+        return value;
+      } catch {
+        return "UTC";
+      }
+    }),
+});
 
 export type SubmissionInput = z.infer<typeof submissionSchema>;

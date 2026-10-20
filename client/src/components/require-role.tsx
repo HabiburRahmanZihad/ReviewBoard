@@ -14,7 +14,15 @@ import { FullPageSpinner } from "@/components/spinner";
  * This is a UX convenience — the API enforces the same rules on every request,
  * so hiding a page here is never the thing that keeps data safe.
  */
-export function RequireRole({ allow, children }: { allow: (role: Role) => boolean; children: React.ReactNode }) {
+export function RequireRole({
+  allow,
+  children,
+  fallback = <FullPageSpinner />,
+}: {
+  allow: (role: Role) => boolean;
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
+}) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
   const allowed = !!user && allow(user.role);
@@ -23,6 +31,6 @@ export function RequireRole({ allow, children }: { allow: (role: Role) => boolea
     if (!isLoading && !allowed) router.replace(homePathFor(user));
   }, [isLoading, allowed, user, router]);
 
-  if (isLoading || !allowed) return <FullPageSpinner />;
+  if (isLoading || !allowed) return <>{fallback}</>;
   return <>{children}</>;
 }

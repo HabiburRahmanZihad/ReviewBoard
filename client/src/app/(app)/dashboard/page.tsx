@@ -1,12 +1,14 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
-import { FullPageSpinner } from "@/components/spinner";
+import { PageLoading } from "@/components/spinner";
 import { DashboardView } from "./dashboard-view";
 
-// The dashboard keeps its filters in the URL (?status=…&page=…&q=…), which it
-// reads with useSearchParams — so it must sit inside a Suspense boundary.
+export const metadata: Metadata = { title: "Review queue" };
+
+// Filters live in the URL and are read with useSearchParams, which needs a Suspense boundary.
 export default function DashboardPage() {
   return (
-    <Suspense fallback={<FullPageSpinner />}>
+    <Suspense fallback={<PageLoading />}>
       <DashboardView />
     </Suspense>
   );

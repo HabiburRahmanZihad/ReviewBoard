@@ -1,20 +1,33 @@
-import { CircleCheck, CircleX, Clock } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { SubmissionStatus } from "@/types";
 
-const styles: Record<SubmissionStatus, { label: string; className: string; Icon: typeof Clock }> = {
-  PENDING: { label: "Pending", className: "bg-amber-500/10 text-amber-400 border-amber-500/20", Icon: Clock },
-  APPROVED: { label: "Approved", className: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", Icon: CircleCheck },
-  REJECTED: { label: "Rejected", className: "bg-red-500/10 text-red-400 border-red-500/20", Icon: CircleX },
+export const statusLabel: Record<SubmissionStatus, string> = {
+  PENDING: "Pending",
+  APPROVED: "Approved",
+  REJECTED: "Rejected",
 };
 
+/** Verdict color lives in the dot; the label stays in ink so it reads in every theme. */
+export const statusDot: Record<SubmissionStatus, string> = {
+  PENDING: "bg-pending",
+  APPROVED: "bg-approved",
+  REJECTED: "bg-rejected",
+};
+
+export function StatusDot({ status, className }: { status: SubmissionStatus; className?: string }) {
+  return <span className={cn("inline-block size-2 shrink-0 rounded-full", statusDot[status], className)} aria-hidden />;
+}
+
 export function StatusBadge({ status, className }: { status: SubmissionStatus; className?: string }) {
-  const { label, className: tone, Icon } = styles[status];
   return (
-    <Badge variant="outline" className={cn(tone, className)}>
-      <Icon data-icon="inline-start" />
-      {label}
-    </Badge>
+    <span
+      className={cn(
+        "inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border bg-card px-2.5 text-xs font-medium whitespace-nowrap",
+        className
+      )}
+    >
+      <StatusDot status={status} />
+      {statusLabel[status]}
+    </span>
   );
 }

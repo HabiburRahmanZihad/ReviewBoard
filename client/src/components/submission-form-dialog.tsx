@@ -38,9 +38,11 @@ export function SubmissionFormDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[92vh] overflow-y-auto p-6 sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{resubmitting ? "Resubmit Project" : "Submit a Project"}</DialogTitle>
+          <DialogTitle className="font-heading text-lg font-semibold">
+            {resubmitting ? "Resubmit project" : "Submit a project"}
+          </DialogTitle>
           <DialogDescription>
             {resubmitting
               ? "Address the mentor's feedback, update the details, and send it back for review."
@@ -94,11 +96,12 @@ function SubmissionForm({
   return (
     <form onSubmit={onSubmit} className="space-y-4" noValidate>
       {latestFeedback && (
-        <div className="rounded-md border border-border/60 bg-muted/40 p-3 text-sm">
-          <p className="flex items-center gap-1.5 font-medium mb-1">
-            <MessageSquareText className="size-4" /> Feedback from {latestFeedback.mentor?.name ?? "a mentor"}
+        <div className="rounded-lg border bg-muted/40 p-3.5 text-[13px]">
+          <p className="mb-1 flex items-center gap-1.5 font-medium">
+            <MessageSquareText className="size-4 text-muted-foreground" aria-hidden />
+            Latest feedback from {latestFeedback.mentor?.name ?? "a mentor"}
           </p>
-          <p className="text-muted-foreground whitespace-pre-wrap">{latestFeedback.comment}</p>
+          <p className="leading-relaxed whitespace-pre-wrap text-muted-foreground">{latestFeedback.comment}</p>
         </div>
       )}
 

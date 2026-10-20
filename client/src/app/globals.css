@@ -4,12 +4,27 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * ReviewBoard design tokens
+ * ─────────────────────────
+ * The interface is monochrome — ink on paper — and color is reserved for one
+ * job: a submission's verdict (pending / approved / rejected). The verdict
+ * steps were validated for color-vision deficiency separately for each theme,
+ * and always ship with a label or icon, never color alone.
+ *
+ * Type: Schibsted Grotesk for headings, IBM Plex Sans for UI text,
+ * IBM Plex Mono for code artifacts (repo slugs, URLs).
+ */
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-geist-sans);
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+  --font-heading: var(--font-schibsted), var(--font-plex-sans), sans-serif;
+  --color-approved: var(--approved);
+  --color-pending: var(--pending);
+  --color-rejected: var(--rejected);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -48,83 +63,188 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* ── Light: ink on paper ─────────────────────────────────────────────────── */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --radius: 0.5rem;
+
+  --background: #f5f6f8; /* paper */
+  --foreground: #121417; /* ink */
+  --card: #ffffff;
+  --card-foreground: #121417;
+  --popover: #ffffff;
+  --popover-foreground: #121417;
+  --primary: #121417;
+  --primary-foreground: #ffffff;
+  --secondary: #eceef1;
+  --secondary-foreground: #121417;
+  --muted: #eceef1;
+  --muted-foreground: #5b616b; /* graphite */
+  --accent: #eceef1;
+  --accent-foreground: #121417;
+  --destructive: #b02e2a;
+  --border: #e1e4e8; /* rule */
+  --input: #d5d9df;
+  --ring: #121417;
+
+  /* Verdicts — marks only (dots, bars); text stays in ink */
+  --approved: #26a269;
+  --pending: #e3a521;
+  --rejected: #b02e2a;
+
+  --chart-1: #e3a521;
+  --chart-2: #26a269;
+  --chart-3: #b02e2a;
+  --chart-4: #5b616b;
+  --chart-5: #121417;
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: #121417;
+  --sidebar-primary: #121417;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #eceef1;
+  --sidebar-accent-foreground: #121417;
+  --sidebar-border: #e1e4e8;
+  --sidebar-ring: #121417;
 }
 
+/* ── Dark: its own steps, validated against the dark surface ─────────────── */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #0e1013;
+  --foreground: #e9ebee;
+  --card: #15181d;
+  --card-foreground: #e9ebee;
+  --popover: #181b21;
+  --popover-foreground: #e9ebee;
+  --primary: #e9ebee;
+  --primary-foreground: #121417;
+  --secondary: #1d2127;
+  --secondary-foreground: #e9ebee;
+  --muted: #1d2127;
+  --muted-foreground: #9aa1ab;
+  --accent: #1d2127;
+  --accent-foreground: #e9ebee;
+  --destructive: #e5655a;
+  --border: #262b32;
+  --input: #2e343c;
+  --ring: #e9ebee;
+
+  --approved: #22a06b;
+  --pending: #c4851c;
+  --rejected: #c0443a;
+
+  --chart-1: #c4851c;
+  --chart-2: #22a06b;
+  --chart-3: #c0443a;
+  --chart-4: #9aa1ab;
+  --chart-5: #e9ebee;
+
+  --sidebar: #121519;
+  --sidebar-foreground: #e9ebee;
+  --sidebar-primary: #e9ebee;
+  --sidebar-primary-foreground: #121417;
+  --sidebar-accent: #1d2127;
+  --sidebar-accent-foreground: #e9ebee;
+  --sidebar-border: #262b32;
+  --sidebar-ring: #e9ebee;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
   html {
     @apply font-sans;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-background text-foreground text-sm;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--foreground) 16%, transparent);
+  }
+  :focus-visible {
+    outline-offset: 2px;
+  }
+}
+
+/* Small uppercase label for eyebrows, table headers and section titles */
+@utility eyebrow {
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-stretch: 87.5%;
+  color: var(--muted-foreground);
+}
+
+/* Toast stacking (Base UI exposes the --toast-* variables) */
+@layer components {
+  .toast-root {
+    --gap: 0.625rem;
+    --peek: 0.625rem;
+    --scale: calc(max(0, 1 - (var(--toast-index) * 0.06)));
+    --shrink: calc(1 - var(--scale));
+    --height: var(--toast-frontmost-height, var(--toast-height));
+    --offset-y: calc(var(--toast-offset-y) * -1 + (var(--toast-index) * var(--gap) * -1) + var(--toast-swipe-movement-y));
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    z-index: calc(1000 - var(--toast-index));
+    transform-origin: bottom center;
+    height: var(--height);
+    transform: translateX(var(--toast-swipe-movement-x))
+      translateY(calc(var(--toast-swipe-movement-y) - (var(--toast-index) * var(--peek)) - (var(--shrink) * var(--height))))
+      scale(var(--scale));
+    transition:
+      transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.45s,
+      height 0.15s;
+    user-select: none;
+  }
+  .toast-root::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    height: calc(var(--gap) + 1px);
+  }
+  .toast-root[data-expanded] {
+    transform: translateX(var(--toast-swipe-movement-x)) translateY(var(--offset-y));
+    height: var(--toast-height);
+  }
+  .toast-root[data-starting-style],
+  .toast-root[data-ending-style] {
+    transform: translateY(150%);
+  }
+  .toast-root[data-limited],
+  .toast-root[data-ending-style] {
+    opacity: 0;
+  }
+  .toast-root[data-ending-style][data-swipe-direction="right"] {
+    transform: translateX(calc(var(--toast-swipe-movement-x) + 150%)) translateY(var(--offset-y));
+  }
+  .toast-root[data-ending-style][data-swipe-direction="down"] {
+    transform: translateY(calc(var(--toast-swipe-movement-y) + 150%));
+  }
+  .toast-content[data-behind] {
+    opacity: 0;
+  }
+  .toast-content[data-expanded] {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

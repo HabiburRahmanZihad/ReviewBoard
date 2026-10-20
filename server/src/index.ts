@@ -5,6 +5,7 @@ import { globalLimiter } from "./middleware/rate-limit";
 import { errorHandler } from "./middleware/error-handler";
 import authRoutes from "./routes/auth";
 import submissionRoutes from "./routes/submissions";
+import adminRoutes from "./routes/admin";
 
 const app = express();
 
@@ -36,6 +37,7 @@ app.use(globalLimiter);
 
 app.use("/api/auth", authRoutes);
 app.use("/api/submissions", submissionRoutes);
+app.use("/api/admin", adminRoutes);
 
 // ─── Health Check ───────────────────────────────────────────────────────────
 
