@@ -188,6 +188,8 @@ On Render, set `CLIENT_URL` to your Vercel URL and save; Render redeploys. To al
 
 ## Database Schema
 
+**Interactive ERD:** [dbdiagram.io/d/reviewboard](https://dbdiagram.io/d/reviewboard-6ad6fb9f59916a88a13cd4fb). It shows every table, column, index and relationship, including what happens on delete.
+
 ```
 users                         submissions                          feedbacks
 ─────────────────────         ──────────────────────────────       ──────────────────────
