@@ -491,7 +491,7 @@ function ReviewComposer({
               ? "As an admin you can change this decision."
               : "This decision is final. Ask an admin if it needs to change."}
         </p>
-        <div className="flex flex-wrap gap-2">
+        <div className="ml-auto flex flex-wrap justify-end gap-2">
           {button("comment", "Comment", "outline")}
           {pending && button("reject", "Reject", "danger", <X data-icon="inline-start" />)}
           {pending && button("approve", "Approve", "default", <Check data-icon="inline-start" />)}

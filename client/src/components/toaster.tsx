@@ -14,7 +14,12 @@ export function Toaster() {
   return (
     <Toast.Provider toastManager={toastManager} limit={3}>
       <Toast.Portal>
-        <Toast.Viewport className="fixed right-4 bottom-4 z-100 w-[calc(100vw-2rem)] sm:right-6 sm:bottom-6 sm:w-88">
+        {/*
+          Placed where toasts never cover a control: top edge on phones; on wider
+          screens bottom-left of the content area — clear of the sidebar's account
+          menu and of the review sheet's actions, which sit bottom-right.
+        */}
+        <Toast.Viewport className="fixed top-4 right-4 left-4 z-100 sm:top-auto sm:right-auto sm:bottom-6 sm:left-6 sm:w-88 lg:left-66">
           <ToastList />
         </Toast.Viewport>
       </Toast.Portal>
@@ -28,6 +33,7 @@ function ToastList() {
     <Toast.Root
       key={toast.id}
       toast={toast}
+      swipeDirection={["up", "down", "left"]}
       className="toast-root rounded-lg border bg-popover text-popover-foreground shadow-lg shadow-black/5 dark:shadow-black/40"
     >
       <Toast.Content className="toast-content flex items-start gap-3 overflow-hidden p-3.5 pr-3 transition-opacity duration-200">

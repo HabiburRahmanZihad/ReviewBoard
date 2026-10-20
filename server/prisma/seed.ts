@@ -28,21 +28,21 @@ async function main() {
   ]);
 
   const admin = await prisma.user.create({
-    data: { email: "admin@reviewboard.com", password: adminPassword, name: "System Admin", role: Role.ADMIN },
+    data: { email: "admin@reviewboard.com", password: adminPassword, name: "System Admin", role: Role.ADMIN, createdAt: daysAgo(45) },
   });
   const mentor = await prisma.user.create({
-    data: { email: "mentor@reviewboard.com", password: mentorPassword, name: "Lead Mentor", role: Role.MENTOR },
+    data: { email: "mentor@reviewboard.com", password: mentorPassword, name: "Lead Mentor", role: Role.MENTOR, createdAt: daysAgo(40) },
   });
   const mentor2 = await prisma.user.create({
-    data: { email: "mentor2@reviewboard.com", password: mentorPassword, name: "Senior Mentor", role: Role.MENTOR },
+    data: { email: "mentor2@reviewboard.com", password: mentorPassword, name: "Senior Mentor", role: Role.MENTOR, createdAt: daysAgo(38) },
   });
   console.log(`  ✓ Created admin + 2 mentors`);
 
   // ─── Students ─────────────────────────────────────────────────────────
   const studentSeeds = [
-    { email: "student@reviewboard.com", name: "Demo Student" },
-    { email: "ayesha@reviewboard.com", name: "Ayesha Rahman" },
-    { email: "tanvir@reviewboard.com", name: "Tanvir Hasan" },
+    { email: "student@reviewboard.com", name: "Demo Student", createdAt: daysAgo(30) },
+    { email: "ayesha@reviewboard.com", name: "Ayesha Rahman", createdAt: daysAgo(21) },
+    { email: "tanvir@reviewboard.com", name: "Tanvir Hasan", createdAt: daysAgo(18) },
   ];
   const students = [];
   for (const s of studentSeeds) {

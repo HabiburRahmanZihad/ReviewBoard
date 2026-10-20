@@ -179,7 +179,11 @@
   color: var(--muted-foreground);
 }
 
-/* Toast stacking (Base UI exposes the --toast-* variables) */
+/*
+ * Toast stacking (Base UI exposes the --toast-* variables).
+ * Phones: stacked from the top edge, because sheets are full-width there and
+ * their actions sit at the bottom. Wider screens: stacked from the bottom.
+ */
 @layer components {
   .toast-root {
     --gap: 0.625rem;
@@ -187,16 +191,15 @@
     --scale: calc(max(0, 1 - (var(--toast-index) * 0.06)));
     --shrink: calc(1 - var(--scale));
     --height: var(--toast-frontmost-height, var(--toast-height));
-    --offset-y: calc(var(--toast-offset-y) * -1 + (var(--toast-index) * var(--gap) * -1) + var(--toast-swipe-movement-y));
     position: absolute;
-    right: 0;
-    bottom: 0;
+    top: 0;
+    left: 0;
     width: 100%;
     z-index: calc(1000 - var(--toast-index));
-    transform-origin: bottom center;
+    transform-origin: top center;
     height: var(--height);
     transform: translateX(var(--toast-swipe-movement-x))
-      translateY(calc(var(--toast-swipe-movement-y) - (var(--toast-index) * var(--peek)) - (var(--shrink) * var(--height))))
+      translateY(calc(var(--toast-swipe-movement-y) + (var(--toast-index) * var(--peek)) + (var(--shrink) * var(--height))))
       scale(var(--scale));
     transition:
       transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
@@ -207,28 +210,55 @@
   .toast-root::after {
     content: "";
     position: absolute;
-    top: 100%;
+    bottom: 100%;
     left: 0;
     width: 100%;
     height: calc(var(--gap) + 1px);
   }
   .toast-root[data-expanded] {
-    transform: translateX(var(--toast-swipe-movement-x)) translateY(var(--offset-y));
+    transform: translateX(var(--toast-swipe-movement-x))
+      translateY(calc(var(--toast-offset-y) + (var(--toast-index) * var(--gap)) + var(--toast-swipe-movement-y)));
     height: var(--toast-height);
   }
   .toast-root[data-starting-style],
   .toast-root[data-ending-style] {
-    transform: translateY(150%);
+    transform: translateY(-150%);
   }
   .toast-root[data-limited],
   .toast-root[data-ending-style] {
     opacity: 0;
   }
-  .toast-root[data-ending-style][data-swipe-direction="right"] {
-    transform: translateX(calc(var(--toast-swipe-movement-x) + 150%)) translateY(var(--offset-y));
+  .toast-root[data-ending-style][data-swipe-direction="up"] {
+    transform: translateY(calc(var(--toast-swipe-movement-y) - 150%));
   }
-  .toast-root[data-ending-style][data-swipe-direction="down"] {
-    transform: translateY(calc(var(--toast-swipe-movement-y) + 150%));
+
+  @media (min-width: 640px) {
+    .toast-root {
+      --offset-y: calc(var(--toast-offset-y) * -1 + (var(--toast-index) * var(--gap) * -1) + var(--toast-swipe-movement-y));
+      top: auto;
+      bottom: 0;
+      transform-origin: bottom center;
+      transform: translateX(var(--toast-swipe-movement-x))
+        translateY(calc(var(--toast-swipe-movement-y) - (var(--toast-index) * var(--peek)) - (var(--shrink) * var(--height))))
+        scale(var(--scale));
+    }
+    .toast-root::after {
+      bottom: auto;
+      top: 100%;
+    }
+    .toast-root[data-expanded] {
+      transform: translateX(var(--toast-swipe-movement-x)) translateY(var(--offset-y));
+    }
+    .toast-root[data-starting-style],
+    .toast-root[data-ending-style] {
+      transform: translateY(150%);
+    }
+    .toast-root[data-ending-style][data-swipe-direction="down"] {
+      transform: translateY(calc(var(--toast-swipe-movement-y) + 150%));
+    }
+    .toast-root[data-ending-style][data-swipe-direction="left"] {
+      transform: translateX(calc(var(--toast-swipe-movement-x) - 150%)) translateY(var(--offset-y));
+    }
   }
   .toast-content[data-behind] {
     opacity: 0;

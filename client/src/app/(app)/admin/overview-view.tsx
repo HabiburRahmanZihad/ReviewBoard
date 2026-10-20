@@ -21,6 +21,8 @@ import { SubmissionRef, SubmissionSheet } from "@/components/submission-sheet";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
 export function OverviewView() {
   const router = useRouter();
   const fetchOverview = useCallback(async (signal: AbortSignal) => (await adminApi.overview(signal)).data!, []);
@@ -60,7 +62,11 @@ export function OverviewView() {
           href="/admin/users"
           label="People"
           value={o?.users.total}
-          detail={o ? `${o.users.students} students · ${o.users.mentors} mentors · ${o.users.admins} admins` : undefined}
+          detail={
+            o
+              ? [plural(o.users.students, "student"), plural(o.users.mentors, "mentor"), plural(o.users.admins, "admin")].join(" · ")
+              : undefined
+          }
         />
         <StatTile
           href="/admin/feedback"

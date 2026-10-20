@@ -105,11 +105,11 @@ export function SubmissionsBoard({ mode }: { mode: "reviewer" | "admin" }) {
             <TableHeader>
               <TableRow>
                 <TableHead>Project</TableHead>
-                <TableHead>Student</TableHead>
+                <TableHead className="hidden sm:table-cell">Student</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="hidden md:table-cell">Submitted</TableHead>
                 <TableHead className="hidden lg:table-cell text-right">Feedback</TableHead>
-                <TableHead className="text-right">
+                <TableHead className="hidden text-right sm:table-cell">
                   <span className="sr-only">Action</span>
                 </TableHead>
               </TableRow>
@@ -144,11 +144,23 @@ export function SubmissionsBoard({ mode }: { mode: "reviewer" | "admin" }) {
               ) : (
                 submissions.map((sub) => (
                   <TableRow key={sub.id} className="cursor-pointer" onClick={() => open(sub)}>
-                    <TableCell className="max-w-80">
-                      <div className="truncate font-medium">{sub.projectName}</div>
+                    <TableCell className="max-w-48 sm:max-w-80">
+                      {/* A real button, so the row is reachable by keyboard and screen readers at every size */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          open(sub);
+                        }}
+                        className="block max-w-full truncate rounded-sm text-left font-medium underline-offset-4 hover:underline"
+                      >
+                        {sub.projectName}
+                      </button>
                       <RepoSlug repoUrl={sub.repoUrl} className="max-w-full" />
+                      {/* On phones the student column is hidden, so name them here */}
+                      <div className="truncate text-xs text-muted-foreground sm:hidden">{sub.student.name}</div>
                     </TableCell>
-                    <TableCell className="max-w-64">
+                    <TableCell className="hidden max-w-64 sm:table-cell">
                       <UserCell name={sub.student.name} detail={sub.student.email} />
                     </TableCell>
                     <TableCell>
@@ -173,7 +185,7 @@ export function SubmissionsBoard({ mode }: { mode: "reviewer" | "admin" }) {
                         <span className="sr-only">comments</span>
                       </span>
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="hidden text-right sm:table-cell">
                       <Button
                         size="sm"
                         variant={sub.status === "PENDING" ? "default" : "outline"}

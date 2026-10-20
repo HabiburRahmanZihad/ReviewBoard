@@ -90,13 +90,15 @@ router.get("/overview", async (req: Request, res: Response) => {
     }),
     prisma.feedback.groupBy({ by: ["mentorId"], where: { mentorId: { not: null } }, _count: { _all: true } }),
     prisma.user.findMany({ where: { role: { in: REVIEWER_ROLES } }, select: { id: true, name: true, email: true, role: true } }),
+    // A pending row only changes when it's resubmitted or reopened, so updatedAt is
+    // when it (re)joined the queue — that's what "waiting" is measured from
     prisma.submission.findMany({
       where: { status: SubmissionStatus.PENDING },
-      orderBy: { createdAt: "asc" },
+      orderBy: { updatedAt: "asc" },
       take: 5,
       include: listInclude,
     }),
-    prisma.submission.count({ where: { status: SubmissionStatus.PENDING, createdAt: { lt: staleBefore } } }),
+    prisma.submission.count({ where: { status: SubmissionStatus.PENDING, updatedAt: { lt: staleBefore } } }),
     prisma.user.findMany({ orderBy: { createdAt: "desc" }, take: 10, select: { id: true, name: true, role: true, createdAt: true } }),
     prisma.submission.findMany({
       orderBy: { createdAt: "desc" },
