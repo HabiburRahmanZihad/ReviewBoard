@@ -112,6 +112,80 @@ The login page has one-click buttons that fill in the demo credentials.
 
 ---
 
+## Deployment (Neon + Render + Vercel)
+
+The API runs on **Render**, the frontend on **Vercel**, and the database on **Neon** (any PostgreSQL works). Deploy in this order, because each step needs a URL from the one before.
+
+### 1. Database (Neon)
+
+- Use Neon's **direct** connection string: in Neon → *Connect*, turn **Connection pooling off**, so the host has no `-pooler`. A long-running server keeps its own Prisma connection pool, and Prisma migrations need a direct connection.
+- **Database created earlier with `prisma db push`?** Mark the initial migration as applied, once, from your machine. Otherwise the first deploy tries to create tables that already exist:
+  ```bash
+  cd server
+  npx prisma migrate resolve --applied 0_init
+  ```
+  A fresh, empty database needs nothing: Render applies migrations on every start.
+- **Demo accounts (optional):** `npm run seed` from your machine with `DATABASE_URL` pointing at Neon. It **wipes all data** first.
+
+### 2. API on Render
+
+**Blueprint (recommended):** Render → *New* → *Blueprint* → select this repo. [`render.yaml`](render.yaml) configures everything; you're asked for two values:
+
+| Variable       | Value                                                                    |
+| -------------- | ------------------------------------------------------------------------ |
+| `DATABASE_URL` | Neon direct connection string (with `?sslmode=require`)                  |
+| `CLIENT_URL`   | Your Vercel URL, e.g. `https://reviewboard.vercel.app`. Use any placeholder now and update it in step 4. |
+
+`JWT_SECRET` is generated for you, and `NODE_ENV`, `TRUST_PROXY`, `JWT_EXPIRES_IN` and `NODE_VERSION` come preset.
+
+<details>
+<summary>Or create the web service manually</summary>
+
+| Setting           | Value                                   |
+| ----------------- | --------------------------------------- |
+| Root Directory    | `server`                                |
+| Build Command     | `npm ci --include=dev && npm run build` |
+| Start Command     | `npm run start:prod`                    |
+| Health Check Path | `/api/health`                           |
+| Environment       | `NODE_ENV=production`, `DATABASE_URL`, `JWT_SECRET` (a long random string), `CLIENT_URL`, `TRUST_PROXY=1`, `NODE_VERSION=24` |
+
+</details>
+
+What happens on each deploy:
+- The build installs dev dependencies (TypeScript, Prisma CLI), generates the Prisma client and compiles to `dist/`.
+- `start:prod` runs `prisma migrate deploy`, then starts the server. If a migration fails, the server doesn't start and Render marks the deploy as failed.
+- On shutdown, the server stops taking requests, finishes in-flight ones and closes the database pool.
+
+Check it: `https://<your-service>.onrender.com/api/health` should return `{"success":true,…}`.
+
+> The free plan sleeps after 15 minutes without traffic, so the first request afterwards can take up to a minute.
+
+### 3. Frontend on Vercel
+
+Vercel → *Add New* → *Project* → import this repo, then:
+
+| Setting                  | Value                                          |
+| ------------------------ | ---------------------------------------------- |
+| Root Directory           | `client` (Next.js is detected automatically)   |
+| Environment variable     | `NEXT_PUBLIC_API_URL` = `https://<your-service>.onrender.com/api` |
+
+Deploy. The value is built into the bundle, so **change it → redeploy**. If it's missing, the build stops with a message saying exactly what to set, rather than shipping a site that calls `localhost`.
+
+### 4. Connect them
+
+On Render, set `CLIENT_URL` to your Vercel URL and save; Render redeploys. To allow several origins (e.g. a custom domain as well), comma-separate them. Trailing slashes are ignored. Then open the Vercel URL and sign in.
+
+### Troubleshooting
+
+| Symptom | Fix |
+| ------- | --- |
+| The site says *"Can't reach the server"* | `CLIENT_URL` on Render must exactly match the site's origin (`https://…`, no path), so CORS allows it. Or the free instance is waking up: wait and retry. |
+| Render deploy fails at `prisma migrate deploy` with **P3005** | The database already has tables: run the baseline command from step 1. |
+| `prisma migrate deploy` hangs or mentions an advisory lock | `DATABASE_URL` is Neon's pooled (`-pooler`) string; use the direct one. |
+| Everyone seems to share one rate limit | `TRUST_PROXY` must be set (`1` on Render) so the server sees real client IPs. |
+
+---
+
 ## Database Schema
 
 ```
@@ -189,6 +263,8 @@ Status codes: `400` validation, `401` missing/invalid token, `403` wrong role or
 - **Race safety:** DB unique constraints and conditional updates. Double-clicks and concurrent reviews can't corrupt state.
 - **CORS** is restricted to the frontend origin, and Prisma parameterises every query.
 - **Known trade-off:** the JWT is kept in `localStorage` for simplicity across separate frontend/backend origins. An httpOnly cookie would be safer against XSS, but it needs same-site deployment or a proxy plus CSRF protection.
+- **Frontend headers:** `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, a strict `Referrer-Policy` and `Permissions-Policy`, and no `X-Powered-By`.
+- **Behind a proxy:** `TRUST_PROXY` tells Express how many proxy hops to trust, so rate limits key on the real client IP. The health check sits outside rate limiting, so the host's frequent pings can't trip it.
 - **Known limitation:** rate-limit counters live in memory, which is fine for one server instance. Multiple instances would need a shared store such as Redis.
 
 ---
@@ -197,7 +273,8 @@ Status codes: `400` validation, `401` missing/invalid token, `403` wrong role or
 
 ```
 ReviewBoard/
-├── client/                         # Next.js frontend
+├── render.yaml                     # Render Blueprint for the API
+├── client/                         # Next.js frontend (deploy root on Vercel)
 │   └── src/
 │       ├── app/
 │       │   ├── login/, signup/     # Auth pages (split layout)
@@ -211,7 +288,7 @@ ReviewBoard/
 │       ├── lib/                    # API client, validation schemas, roles, toasts, theme
 │       └── types/
 │
-└── server/                         # Express API
+└── server/                         # Express API (deploy root on Render)
     ├── prisma/
     │   ├── schema.prisma
     │   ├── migrations/             # Committed migration history

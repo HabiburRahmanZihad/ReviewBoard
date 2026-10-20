@@ -1,0 +1,33 @@
+# Render Blueprint for the ReviewBoard API (Express + Prisma).
+# Render → New → Blueprint → pick this repo. Values marked `sync: false`
+# are asked for in the dashboard when the Blueprint is created.
+services:
+  - type: web
+    name: reviewboard-api
+    runtime: node
+    plan: free
+    rootDir: server
+    # Dev dependencies (TypeScript, Prisma CLI) are needed to build and to run migrations
+    buildCommand: npm ci --include=dev && npm run build
+    # Applies any pending Prisma migrations, then starts the compiled server
+    startCommand: npm run start:prod
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      # Neon *direct* connection string (connection pooling off), with ?sslmode=require
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      # Your Vercel URL, e.g. https://reviewboard.vercel.app (comma-separate several)
+      - key: CLIENT_URL
+        sync: false
+      # Render puts one proxy in front of the app; needed for per-user rate limits
+      - key: TRUST_PROXY
+        value: "1"
