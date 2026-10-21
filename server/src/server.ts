@@ -4,9 +4,9 @@ import { config } from "./config";
 import { prisma } from "./lib/prisma";
 import { globalLimiter } from "./middleware/rate-limit";
 import { errorHandler } from "./middleware/error-handler";
-import authRoutes from "./routes/auth";
-import submissionRoutes from "./routes/submissions";
-import adminRoutes from "./routes/admin";
+import authRoutes from "./modules/auth/auth.routes";
+import submissionRoutes from "./modules/submission/submission.routes";
+import adminRoutes from "./modules/admin/admin.routes";
 
 const app = express();
 

@@ -260,7 +260,7 @@ Status codes: `400` validation, `401` missing/invalid token, `403` wrong role or
 - **Passwords:** bcrypt (cost 12). Signup requires 8–72 characters with a letter and a number (bcrypt ignores bytes past 72).
 - **Login:** the same error and the same timing whether or not the email exists, so accounts can't be enumerated.
 - **JWT:** HS256 pinned on verify. The server refuses to start in production without `JWT_SECRET`. On every request the user is re-loaded from the DB, so deleted users and changed roles take effect immediately.
-- **RBAC:** `authenticate` (who are you?) → `authorize(...roles)` (what may you do?) → ownership checks inside handlers (is this *your* submission?)
+- **RBAC:** `authenticate` (who are you?) → `authorize(...roles)` (what may you do?) → ownership checks in the service layer (is this *your* submission?)
 - **Validation:** Zod on every body and query. Unknown fields are stripped. JSON bodies are capped at 100 kB, and malformed JSON returns `400`.
 - **Race safety:** DB unique constraints and conditional updates. Double-clicks and concurrent reviews can't corrupt state.
 - **CORS** is restricted to the frontend origin, and Prisma parameterises every query.
@@ -299,10 +299,15 @@ ReviewBoard/
         ├── config/                 # Env + rate-limit settings
         ├── lib/                    # Prisma client, HttpError, shared select shapes
         ├── middleware/             # auth (AuthN/AuthZ), validate (Zod), rate-limit, error-handler
-        ├── routes/                 # auth, submissions, admin
+        ├── modules/                # One folder per feature: <name>.routes → .controller → .service
+        │   ├── auth/               # signup, login, me
+        │   ├── submission/         # submit, resubmit, list, stats, review, feedback
+        │   └── admin/              # overview, users, status overrides, feedback moderation
         ├── validation/             # Zod schemas + GitHub URL canonicalisation
-        └── index.ts
+        └── server.ts               # Express app, route mounting, graceful shutdown
 ```
+
+Each server module splits a request the same way. `*.routes.ts` declares the URL and its middleware chain (auth → role → validation). `*.controller.ts` reads the request, calls the service and shapes the JSON response. `*.service.ts` holds the business rules and Prisma queries, and throws `HttpError` for the global error handler to format.
 
 ---
 

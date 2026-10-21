@@ -239,3 +239,12 @@ export const overviewQuerySchema = z.object({
 });
 
 export type SubmissionInput = z.infer<typeof submissionSchema>;
+export type SignupInput = z.infer<typeof signupSchema>;
+export type LoginInput = z.infer<typeof loginSchema>;
+export type ReviewInput = z.infer<typeof reviewSchema>;
+export type ListSubmissionsQuery = z.infer<typeof listSubmissionsQuerySchema>;
+export type CreateUserInput = z.infer<typeof createUserSchema>;
+export type UpdateUserInput = z.infer<typeof updateUserSchema>;
+export type OverrideStatusInput = z.infer<typeof overrideStatusSchema>;
+export type ListUsersQuery = z.infer<typeof listUsersQuerySchema>;
+export type ListFeedbackQuery = z.infer<typeof listFeedbackQuerySchema>;
